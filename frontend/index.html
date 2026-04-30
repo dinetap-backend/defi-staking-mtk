@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MTK Staking</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-white flex items-center justify-center p-6">
+  <div class="max-w-2xl w-full">
+    <div class="flex justify-between items-center mb-12">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-gradient-to-br from-violet-500 to-pink-500 rounded-3xl flex items-center justify-center text-4xl font-bold shadow-2xl">MTK</div>
+        <h1 class="text-4xl font-bold tracking-tighter"> Staking</h1>
+      </div>
+      <button onclick="connectWallet()" id="connectBtn"
+              class="px-8 py-4 bg-white text-black rounded-3xl font-semibold flex items-center gap-3 hover:scale-105 transition">
+        <i class="fas fa-wallet"></i> Connect Wallet
+      </button>
+    </div>
+
+    <div id="dashboard" class="hidden glass rounded-3xl p-10">
+      <div class="grid grid-cols-2 gap-8 mb-12">
+        <div class="text-center">
+          <p class="text-zinc-400 text-sm">Staked Balance</p>
+          <p id="staked" class="text-6xl font-semibold mt-3">0.0000</p>
+          <p class="text-emerald-400">MTK</p>
+        </div>
+        <div class="text-center">
+          <p class="text-zinc-400 text-sm">Pending Rewards</p>
+          <p id="reward" class="text-6xl font-semibold mt-3 text-emerald-400">0.0000</p>
+          <p class="text-emerald-400">MTK</p>
+        </div>
+      </div>
+
+      <div class="mb-8">
+        <label class="block text-zinc-400 text-sm mb-3">Stake Amount</label>
+        <div class="flex gap-4">
+          <input id="amountInput" type="text" placeholder="10.0" 
+                 class="flex-1 bg-white/10 border border-white/20 rounded-3xl px-8 py-6 text-2xl focus:outline-none focus:border-violet-400">
+          <button onclick="stakeTokens()" 
+                  class="bg-violet-600 hover:bg-violet-700 px-12 rounded-3xl font-semibold text-xl">Stake</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <button onclick="claimReward()" 
+                class="bg-emerald-600 hover:bg-emerald-700 py-7 rounded-3xl font-semibold text-xl flex items-center justify-center gap-2">
+          <i class="fas fa-gift"></i> Claim Rewards
+        </button>
+        <button onclick="exitStaking()" 
+                class="bg-red-600 hover:bg-red-700 py-7 rounded-3xl font-semibold text-xl flex items-center justify-center gap-2">
+          <i class="fas fa-sign-out-alt"></i> Unstake All
+        </button>
+      </div>
+    </div>
+
+    <div class="text-center text-xs text-zinc-500 mt-12">
+      MyToken: 0x829CE0190728bf5D5ED07e2D046D4E7890b41125<br>
+      MyStaking: 0xC0524d9516112BEeea6123Eedf8488c6f1431C46
+    </div>
+  </div>
+
+  <script>
+    let signer, stakingContract;
+    const STAKING_ADDRESS = "0xC0524d9516112BEeea6123Eedf8488c6f1431C46";
+
+    const abi = [
+      "function balances(address) view returns (uint256)",
+      "function earned(address) view returns (uint256)",
+      "function stake(uint256)",
+      "function getReward()",
+      "function exit()"
+    ];
+
+    async function connectWallet() {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      stakingContract = new ethers.Contract(STAKING_ADDRESS, abi, signer);
+
+      document.getElementById("connectBtn").classList.add("hidden");
+      document.getElementById("dashboard").classList.remove("hidden");
+      updateUI();
+    }
+
+    async function updateUI() {
+      const address = await signer.getAddress();
+      const staked = await stakingContract.balances(address);
+      const reward = await stakingContract.earned(address);
+      document.getElementById("staked").textContent = parseFloat(ethers.formatEther(staked)).toFixed(4);
+      document.getElementById("reward").textContent = parseFloat(ethers.formatEther(reward)).toFixed(4);
+    }
+
+    async function stakeTokens() {
+      const amt = document.getElementById("amountInput").value;
+      if (!amt) return alert("Enter amount");
+      const tx = await stakingContract.stake(ethers.parseEther(amt));
+      alert("Transaction sent! Please wait...");
+      await tx.wait();
+      alert("Staked successfully!");
+      updateUI();
+    }
+
+    async function claimReward() {
+      const tx = await stakingContract.getReward();
+      await tx.wait();
+      alert("Rewards claimed!");
+      updateUI();
+    }
+
+    async function exitStaking() {
+      const tx = await stakingContract.exit();
+      await tx.wait();
+      alert("Unstaked + Rewards claimed!");
+      updateUI();
+    }
+  </script>
+</body>
+</html>
